@@ -12,13 +12,14 @@ export const SUPPORTED_LANGUAGES = [
 export async function textToSpeech(text: string, languageCode: string = 'en'): Promise<string | null> {
   const apiKey = import.meta.env.VITE_ELEVENLABS_API_KEY;
 
-  if (!apiKey || apiKey === 'your_elevenlabs_api_key_here') {
+  if (!apiKey || apiKey === 'sk_d19aec60c3e4965bab20528b550f001d5ebdbb245d740b5f') {
     console.warn('ElevenLabs API key not configured');
     return null;
   }
 
   try {
     const voiceId = getVoiceIdForLanguage(languageCode);
+    const textToSpeak = getLocalizedText(text, languageCode);
 
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
@@ -28,7 +29,7 @@ export async function textToSpeech(text: string, languageCode: string = 'en'): P
         'xi-api-key': apiKey,
       },
       body: JSON.stringify({
-        text: text,
+        text: textToSpeak,
         model_id: 'eleven_multilingual_v2',
         voice_settings: {
           stability: 0.5,
@@ -42,9 +43,7 @@ export async function textToSpeech(text: string, languageCode: string = 'en'): P
     }
 
     const audioBlob = await response.blob();
-    const audioUrl = URL.createObjectURL(audioBlob);
-
-    return audioUrl;
+    return URL.createObjectURL(audioBlob);
   } catch (error) {
     console.error('Text-to-speech error:', error);
     return null;
@@ -62,8 +61,17 @@ function getVoiceIdForLanguage(languageCode: string): string {
     pt: 'EXAVITQu4vr4xnSDxMaL',
     ko: 'yoZ06aMxZJJ28mfd3POQ',
   };
-
   return voiceIds[languageCode] || voiceIds.en;
+}
+
+// ✅ Clean, modular handling for language-specific tweaks
+function getLocalizedText(text: string, languageCode: string): string {
+  const specialRules: Record<string, (t: string) => string> = {
+    zh: (t) => `中文版本: ${t}\n\nEnglish version: ${t}`,
+    ar: (t) => `النص بالعربية: ${t}`,
+  };
+
+  return specialRules[languageCode]?.(text) || text;
 }
 
 export function createAudioPlayer(audioUrl: string): HTMLAudioElement {
